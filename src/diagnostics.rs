@@ -1,8 +1,6 @@
-use std::{cell::RefCell, fmt::Display};
+use std::fmt::Display;
 
 use crate::logger::Logger;
-
-pub type DiagnosticBagCell = RefCell<DiagnosticBag>;
 
 #[derive(PartialEq, Eq)]
 enum DiagnosticKind {
@@ -16,17 +14,12 @@ struct Diagnostic {
     pub msg: String,
 }
 
+#[derive(Default)]
 pub struct DiagnosticBag {
     diagnostics: Vec<Diagnostic>,
 }
 
 impl DiagnosticBag {
-    pub fn new() -> DiagnosticBagCell {
-        RefCell::new(Self {
-            diagnostics: Vec::new(),
-        })
-    }
-
     pub fn report_error<E: Display>(&mut self, err: E) {
         self.diagnostics.push(Diagnostic {
             kind: DiagnosticKind::Error,
@@ -55,16 +48,7 @@ impl DiagnosticBag {
         });
     }
 
-    pub fn print_all_once(self) {
-        for d in self.diagnostics.into_iter() {
-            match d.kind {
-                DiagnosticKind::Info => Logger::info(d.msg),
-                DiagnosticKind::Warning => Logger::warning(d.msg),
-                DiagnosticKind::Error => Logger::error(d.msg),
-            }
-        }
-    }
-
+    #[inline]
     pub fn print_all(&self) {
         for d in self.diagnostics.iter() {
             match d.kind {
@@ -75,6 +59,7 @@ impl DiagnosticBag {
         }
     }
 
+    #[inline]
     pub fn contains_error(&self) -> bool {
         for d in self.diagnostics.iter() {
             if d.kind == DiagnosticKind::Error {

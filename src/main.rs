@@ -1,6 +1,5 @@
 use core::Core;
-
-use logger::Logger;
+use std::env;
 
 pub mod core;
 pub mod diagnostics;
@@ -14,8 +13,8 @@ fn main() {
     core.parse_config();
     core.verify_diagnostics();
 
-    let c = core.get_ctx_ref();
-    Logger::info(c.config.to_string());
+    core.parse_args(env::args().collect());
+    core.verify_diagnostics();
 
-    core.print_diagnostics_final();
+    core.print_all_diagnostics();
 }

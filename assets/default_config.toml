@@ -1,0 +1,16 @@
+std = 20
+include_dirs = ["include", "dependencies/include"]
+lib_dirs = ["dependencies/lib"]
+target_name = "program"
+
+[presets.debug]
+cflags = ["-g", "-O0"]
+lflags = ["-asdsad"]
+libs = ["fmt"]
+target_folder = "target/debug"
+
+[presets.release]
+cflags = ["-O3"]
+lflags = ["-flto"]
+libs = ["fmt"]
+target_folder = "target/release"
