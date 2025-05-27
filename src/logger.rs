@@ -5,7 +5,7 @@ pub struct Logger;
 
 impl Logger {
     #[inline]
-    pub fn info(msg: String) {
+    pub fn info(msg: &str) {
         let lable = "INFO".bright_blue();
         if cfg!(debug_assertions) {
             println!("[{}] [{lable}] {msg}", Self::time_str());
@@ -15,7 +15,7 @@ impl Logger {
     }
 
     #[inline]
-    pub fn warning(msg: String) {
+    pub fn warning(msg: &str) {
         let lable = "WARNING".yellow();
         if cfg!(debug_assertions) {
             println!("[{}] [{lable}] {msg}", Self::time_str());
@@ -25,7 +25,7 @@ impl Logger {
     }
 
     #[inline]
-    pub fn error(msg: String) {
+    pub fn error(msg: &str) {
         let lable = "ERROR".red();
         if cfg!(debug_assertions) {
             println!("[{}] [{lable}] {msg}", Self::time_str());

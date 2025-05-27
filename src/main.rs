@@ -3,6 +3,7 @@ use std::env;
 
 pub mod core;
 pub mod diagnostics;
+pub mod drivers;
 pub mod errors;
 pub mod logger;
 pub mod parsing;

@@ -52,9 +52,9 @@ impl DiagnosticBag {
     pub fn print_all(&self) {
         for d in self.diagnostics.iter() {
             match d.kind {
-                DiagnosticKind::Info => Logger::info(d.msg.clone()),
-                DiagnosticKind::Warning => Logger::warning(d.msg.clone()),
-                DiagnosticKind::Error => Logger::error(d.msg.clone()),
+                DiagnosticKind::Info => Logger::info(&d.msg),
+                DiagnosticKind::Warning => Logger::warning(&d.msg),
+                DiagnosticKind::Error => Logger::error(&d.msg),
             }
         }
     }

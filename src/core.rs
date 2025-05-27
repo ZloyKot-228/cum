@@ -10,6 +10,8 @@ use crate::{
     },
 };
 
+pub const SHORT_HELP: &str = "Call 'cum --help' for help";
+
 pub type ContextCell = Rc<RefCell<Context>>;
 pub type DiagnosticsCell = Rc<RefCell<DiagnosticBag>>;
 
@@ -31,13 +33,14 @@ impl Core {
 
         if let Err(err) = parser.try_parse() {
             self.diagnostics.borrow_mut().report_error(err);
+            Logger::info(SHORT_HELP);
         }
     }
 
     pub fn parse_config(&mut self) {
         let cfg_path = PathBuf::from(CONFIG_FILE_PATH);
         if !cfg_path.exists() {
-            Logger::warning("Config file is missing, default one is loaded".to_string());
+            Logger::warning("Config file is missing, default one is loaded");
         }
 
         let parser = ConfigParser::new(cfg_path, self.ctx.clone());

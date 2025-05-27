@@ -3,7 +3,3 @@ target_name = "executable"
 [presets.some]
 cflags = ["-g", "-O0"]
 target_folder = "target/sadd"
-
-[presets.release]
-target_folder = "sdfdsf/sdfsdf"
-libs = ["dsfdsf"]
