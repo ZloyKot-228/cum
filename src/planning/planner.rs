@@ -1,49 +1,38 @@
-use std::{cell::RefCell, path::PathBuf, rc::Rc};
+use std::path::PathBuf;
 
 use crate::{
-    core::FilesystemManagerCell,
+    core::{Context, FilesystemManagerCell},
     drivers::{dependency_analyzer::DependencyAnalyzer, fs_manager::FilesystemManager},
     errors::{PlannerError, QueryError},
-    parsing::{arg_parser::Args, config::Config},
 };
 
-use super::{args_specification::*, plan::Plan};
+use super::args_specification::*;
 
-pub struct Planner {
-    cfg: Rc<RefCell<Config>>,
-    args: Rc<RefCell<Args>>,
-    plan: Rc<RefCell<Plan>>,
+pub struct Planner<'a> {
+    ctx: &'a mut Context,
     fs_m: FilesystemManagerCell,
 
-    obj_list: RefCell<Vec<PathBuf>>,
-    preset: RefCell<String>,
+    obj_list: Vec<PathBuf>,
+    preset: String,
 }
 
-impl Planner {
-    pub fn new(
-        cfg: Rc<RefCell<Config>>,
-        args: Rc<RefCell<Args>>,
-        plan: Rc<RefCell<Plan>>,
-        fs_m: FilesystemManagerCell,
-    ) -> Self {
+impl<'a> Planner<'a> {
+    pub fn new(ctx: &'a mut Context, fs_m: FilesystemManagerCell) -> Self {
         Self {
-            cfg,
-            args,
-            plan,
+            ctx,
             fs_m,
-            preset: String::default().into(),
-            obj_list: Vec::default().into(),
+            preset: String::default(),
+            obj_list: Vec::default(),
         }
     }
 
-    pub fn try_make_plan(&self) -> Result<(), PlannerError> {
+    pub fn try_make_plan(&mut self) -> Result<(), PlannerError> {
         self.get_preset()?;
-        let args_bind = self.args.borrow();
 
-        if IncrementalBuild.is_satisfied_by(&args_bind) {
+        if IncrementalBuild.is_satisfied_by(&self.ctx.args) {
             self.plan_compilation(true)?;
             self.plan_linkage()?;
-        } else if FullBuild.is_satisfied_by(&args_bind) {
+        } else if FullBuild.is_satisfied_by(&self.ctx.args) {
             self.plan_compilation(false)?;
             self.plan_linkage()?;
         }
@@ -51,7 +40,7 @@ impl Planner {
         Ok(())
     }
 
-    pub fn plan_compilation(&self, incremental: bool) -> Result<(), PlannerError> {
+    pub fn plan_compilation(&mut self, incremental: bool) -> Result<(), PlannerError> {
         let obj_files = self
             .fs_m
             .find_all_with_extension("o", &PathBuf::from("target/obj"));
@@ -73,24 +62,20 @@ impl Planner {
             src_files = anayzer.get_dirty_src(newest_obj.as_ref().unwrap());
         }
 
-        let mut plan_bind = self.plan.borrow_mut();
         for file in src_files {
-            plan_bind.add_compilation(
+            self.ctx.plan.add_compilation(
                 file.clone(),
                 Self::src_to_obj(&file),
-                self.preset.borrow().clone(),
+                self.preset.clone(),
             );
         }
 
         Ok(())
     }
 
-    pub fn plan_linkage(&self) -> Result<(), PlannerError> {
-        let cfg_bind = self.cfg.borrow();
-        let preset_bind = self.preset.borrow();
-
-        let executable_path = cfg_bind.presets[preset_bind.as_str()].target_folder.clone();
-        let executable_name = PathBuf::from(&cfg_bind.target_name);
+    pub fn plan_linkage(&mut self) -> Result<(), PlannerError> {
+        let executable_path = self.ctx.config.presets[&self.preset].target_folder.clone();
+        let executable_name = PathBuf::from(&self.ctx.config.target_name);
 
         let executable = if cfg!(target_os = "windows") {
             executable_path.join(executable_name).with_extension("exe")
@@ -98,18 +83,15 @@ impl Planner {
             executable_path.join(executable_name)
         };
 
-        self.plan.borrow_mut().add_linkage(
-            self.obj_list.borrow().clone(),
-            executable,
-            preset_bind.clone(),
-        );
+        self.ctx
+            .plan
+            .add_linkage(self.obj_list.clone(), executable, self.preset.clone());
 
         Ok(())
     }
 
-    fn create_obj_list(&self, src_list: &[PathBuf]) {
-        let mut list_bind = self.obj_list.borrow_mut();
-        *list_bind = src_list.iter().map(Self::src_to_obj).collect();
+    fn create_obj_list(&mut self, src_list: &[PathBuf]) {
+        self.obj_list = src_list.iter().map(Self::src_to_obj).collect();
     }
 
     /// src/deps/dep1.cpp turns into target/obj/src.deps.dep1.o
@@ -123,19 +105,19 @@ impl Planner {
         PathBuf::from(format!("target/obj/{dotted}"))
     }
 
-    fn get_preset(&self) -> Result<(), QueryError> {
+    fn get_preset(&mut self) -> Result<(), QueryError> {
         let preset = self
+            .ctx
             .args
-            .borrow()
             .named_params
             .get("preset")
             .cloned()
             .unwrap_or(String::from("debug"));
 
-        if !self.cfg.borrow().presets.contains_key(&preset) {
+        if !self.ctx.config.presets.contains_key(&preset) {
             Err(QueryError::InvalidPreset(preset))
         } else {
-            *self.preset.borrow_mut() = preset;
+            self.preset = preset;
             Ok(())
         }
     }

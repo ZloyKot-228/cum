@@ -22,9 +22,9 @@ pub type FilesystemManagerCell = Rc<FilesystemManager>;
 
 #[derive(Default)]
 pub struct Context {
-    pub config: Rc<RefCell<Config>>,
-    pub args: Rc<RefCell<Args>>,
-    pub plan: Rc<RefCell<Plan>>,
+    pub config: Config,
+    pub args: Args,
+    pub plan: Plan,
 }
 
 #[derive(Default)]
@@ -36,7 +36,7 @@ pub struct Core {
 
 impl Core {
     pub fn parse_args(&mut self, args: Vec<String>) {
-        let parser = ArgParser::new(args, self.ctx.args.clone());
+        let mut parser = ArgParser::new(args, &mut self.ctx.args);
 
         if let Err(err) = parser.try_parse() {
             self.diagnostics.borrow_mut().report_error(err);
@@ -50,7 +50,7 @@ impl Core {
             Logger::warning("Config file is missing, default one was loaded");
         }
 
-        let parser = ConfigParser::new(cfg_path, self.ctx.config.clone());
+        let mut parser = ConfigParser::new(cfg_path, &mut self.ctx.config);
 
         if let Err(err) = parser.make_default() {
             self.diagnostics.borrow_mut().report_error(err);
@@ -61,12 +61,7 @@ impl Core {
     }
 
     pub fn make_plan(&mut self) {
-        let planner = Planner::new(
-            self.ctx.config.clone(),
-            self.ctx.args.clone(),
-            self.ctx.plan.clone(),
-            self.fs_m.clone(),
-        );
+        let mut planner = Planner::new(&mut self.ctx, self.fs_m.clone());
 
         if let Err(err) = planner.try_make_plan() {
             self.diagnostics.borrow_mut().report_error(err);
@@ -85,20 +80,18 @@ impl Core {
         self.diagnostics.borrow().print_all();
     }
 
-    /// Print information if needed and exist (if printed something).
+    /// Print information if need and exist (if printed something).
     pub fn print_info(&self) {
-        let args_bind = self.ctx.args.borrow();
-
-        if PrintHelp.is_satisfied_by(&args_bind) {
+        if PrintHelp.is_satisfied_by(&self.ctx.args) {
             Logger::info(HELP_MSG);
             exit(0);
-        } else if PrintVersion.is_satisfied_by(&args_bind) {
+        } else if PrintVersion.is_satisfied_by(&self.ctx.args) {
             Logger::info(VERSION_MSG);
             exit(0);
         }
     }
 
-    pub fn ctx_ref(&self) -> &Context {
+    pub fn ctx(&self) -> &Context {
         &self.ctx
     }
 }

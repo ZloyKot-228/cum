@@ -1,46 +1,43 @@
-use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
+use std::{fs, path::PathBuf};
 
 use crate::errors::ParsingError;
 
 use super::config::{Config, DEFAULT_CONFIG_STR};
 
-#[derive(Default)]
-pub struct ConfigParser {
+pub struct ConfigParser<'a> {
     file: PathBuf,
 
-    cfg: Rc<RefCell<Config>>,
+    cfg: &'a mut Config,
 }
 
-impl ConfigParser {
-    pub fn new(file: PathBuf, cfg: Rc<RefCell<Config>>) -> Self {
+impl<'a> ConfigParser<'a> {
+    pub fn new(file: PathBuf, cfg: &'a mut Config) -> Self {
         Self { file, cfg }
     }
 
     /// Write default config into Context
-    pub fn make_default(&self) -> Result<(), ParsingError> {
-        let mut cfg_bind = self.cfg.borrow_mut();
-        *cfg_bind = Self::parse_from_str(DEFAULT_CONFIG_STR)?;
+    pub fn make_default(&mut self) -> Result<(), ParsingError> {
+        *self.cfg = Self::parse_from_str(DEFAULT_CONFIG_STR)?;
 
-        if cfg_bind.std_as_str().is_none() {
-            return Err(ParsingError::WrongStandart(cfg_bind.std));
+        if self.cfg.std_as_str().is_none() {
+            return Err(ParsingError::WrongStandart(self.cfg.std));
         }
         Ok(())
     }
 
     /// Parse into Context only user-defined params form .toml file.
     /// Does nothing if file doesn't exist.
-    pub fn try_incremental_parse(&self) -> Result<(), ParsingError> {
+    pub fn try_incremental_parse(&mut self) -> Result<(), ParsingError> {
         if !self.file.exists() {
             return Ok(());
         }
-        let cfg_bind = &mut self.cfg.borrow_mut();
 
         let cfg_user_defined_str = fs::read_to_string(&self.file)?;
         let cfg_user_defined = Self::parse_from_str(&cfg_user_defined_str)?;
 
-        cfg_bind.incremental_merge(cfg_user_defined);
-        if cfg_bind.std_as_str().is_none() {
-            return Err(ParsingError::WrongStandart(cfg_bind.std));
+        self.cfg.incremental_merge(cfg_user_defined);
+        if self.cfg.std_as_str().is_none() {
+            return Err(ParsingError::WrongStandart(self.cfg.std));
         }
 
         Ok(())
@@ -67,12 +64,12 @@ pub mod tests {
     #[test]
     fn simple_cfg_parser_debug() {
         let mock_file = PathBuf::from("test_assets/test_config.toml");
-        let mock_ctx = Context::default();
-        let parser = ConfigParser::new(mock_file, mock_ctx.config.clone());
+        let mut mock_ctx = Context::default();
+        let mut parser = ConfigParser::new(mock_file, &mut mock_ctx.config);
 
         parser.make_default().unwrap();
         parser.try_incremental_parse().unwrap();
 
-        println!("Parsed config: {:#?}", mock_ctx.config.borrow());
+        println!("Parsed config: {:#?}", mock_ctx.config);
     }
 }

@@ -19,26 +19,25 @@ pub struct Args {
     pub freestanding_params: Vec<String>,
 }
 
-pub struct ArgParser {
+pub struct ArgParser<'a> {
     args: Vec<String>,
-    args_dest: Rc<RefCell<Args>>,
+    args_dest: &'a mut Args,
 }
 
-impl ArgParser {
-    pub fn new(args: Vec<String>, args_dest: Rc<RefCell<Args>>) -> Self {
+impl<'a> ArgParser<'a> {
+    pub fn new(args: Vec<String>, args_dest: &'a mut Args) -> Self {
         Self { args, args_dest }
     }
 
-    pub fn try_parse(&self) -> Result<(), QueryError> {
+    pub fn try_parse(&mut self) -> Result<(), QueryError> {
         if self.args.len() < 2 {
             return Err(QueryError::NoArgs);
         }
 
-        let args_bind = &mut self.args_dest.borrow_mut();
         for (i, arg) in self.args.iter().skip(1).enumerate() {
             // Consume freestanding_params
             if arg == "--" {
-                args_bind
+                self.args_dest
                     .freestanding_params
                     .extend_from_slice(&self.args[i + 2..]);
                 break;
@@ -46,18 +45,18 @@ impl ArgParser {
 
             if Self::is_named(arg) {
                 let pair = Self::get_named_from(arg);
-                args_bind.named_params.insert(pair.0, pair.1);
+                self.args_dest.named_params.insert(pair.0, pair.1);
                 continue;
             } else if Self::is_flag(arg) {
-                args_bind.flags.insert(Self::get_flag_from(arg));
+                self.args_dest.flags.insert(Self::get_flag_from(arg));
                 continue;
             }
 
             // Handle unnamed param or command
             if i == 0 {
-                args_bind.command = Some(arg.clone());
+                self.args_dest.command = Some(arg.clone());
             } else {
-                args_bind.unnamed_params.push(arg.clone());
+                self.args_dest.unnamed_params.push(arg.clone());
             }
         }
 
@@ -125,8 +124,8 @@ pub mod tests {
         .iter()
         .map(|s| String::from(*s))
         .collect();
-        let mock_ctx = Context::default();
-        let parser = ArgParser::new(mock_args, mock_ctx.args.clone());
+        let mut mock_ctx = Context::default();
+        let mut parser = ArgParser::new(mock_args, &mut mock_ctx.args);
 
         let mut expected_args = Args::default();
         expected_args.command = Some("build".to_string());
@@ -141,8 +140,8 @@ pub mod tests {
 
         parser.try_parse().unwrap();
 
-        println!("Parsed args: {:#?}", mock_ctx.args.borrow());
-        assert_eq!(*mock_ctx.args.borrow(), expected_args);
+        println!("Parsed args: {:#?}", mock_ctx.args);
+        assert_eq!(mock_ctx.args, expected_args);
     }
 
     #[test]
@@ -151,8 +150,8 @@ pub mod tests {
             .iter()
             .map(|s| String::from(*s))
             .collect();
-        let mock_ctx = Context::default();
-        let parser = ArgParser::new(mock_args, mock_ctx.args.clone());
+        let mut mock_ctx = Context::default();
+        let mut parser = ArgParser::new(mock_args, &mut mock_ctx.args);
 
         let mut expected_args = Args::default();
         expected_args
@@ -161,6 +160,6 @@ pub mod tests {
 
         parser.try_parse().unwrap();
 
-        assert_eq!(*mock_ctx.args.borrow(), expected_args);
+        assert_eq!(mock_ctx.args, expected_args);
     }
 }

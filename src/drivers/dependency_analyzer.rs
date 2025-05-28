@@ -23,7 +23,10 @@ impl<'a> DependencyAnalyzer<'a> {
     }
 
     pub fn generate_dependencies(&mut self) -> Result<(), ExecutionError> {
-        todo!()
+        for file in self.src_files {
+            self.push_dependency(file)?;
+        }
+        Ok(())
     }
 
     /// Get entries from src_files which need to be recompiled.
@@ -32,7 +35,7 @@ impl<'a> DependencyAnalyzer<'a> {
         todo!()
     }
 
-    fn push_dependency(&mut self, file: &Path) {
+    fn push_dependency(&mut self, file: &Path) -> Result<(), ExecutionError> {
         todo!()
     }
 }
