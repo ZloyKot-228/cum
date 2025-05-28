@@ -9,6 +9,7 @@ pub mod logger;
 pub mod meta;
 pub mod parsing;
 pub mod planning;
+pub mod test_utils;
 
 fn main() {
     let mut core = Core::default();

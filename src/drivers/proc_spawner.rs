@@ -11,7 +11,7 @@ pub struct ProcOutput {
 }
 
 impl ProcSpawner {
-    pub fn spawn_and_wait(exe: &str, args: &[&str]) -> Result<ProcOutput, ExecutionError> {
+    pub fn spawn_and_wait(exe: &str, args: &[String]) -> Result<ProcOutput, ExecutionError> {
         let output = Command::new(exe).args(args).output()?;
 
         let outs: String = String::from_utf8_lossy(&output.stdout).into();
@@ -26,7 +26,7 @@ impl ProcSpawner {
     }
 
     /// Spawn process and inherit all stdio streams from parent. Returns exit_code.
-    pub fn spawn_into_parent(exe: &str, args: &[&str]) -> Result<i32, ExecutionError> {
+    pub fn spawn_into_parent(exe: &str, args: &[String]) -> Result<i32, ExecutionError> {
         let mut handle = Command::new(exe)
             .args(args)
             .stdin(Stdio::inherit())

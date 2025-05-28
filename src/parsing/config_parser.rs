@@ -63,7 +63,7 @@ pub mod tests {
 
     #[test]
     fn simple_cfg_parser_debug() {
-        let mock_file = PathBuf::from("test_assets/test_config.toml");
+        let mock_file = PathBuf::from("test_assets/Cum.toml");
         let mut mock_ctx = Context::default();
         let mut parser = ConfigParser::new(mock_file, &mut mock_ctx.config);
 

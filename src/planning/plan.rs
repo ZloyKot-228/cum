@@ -11,7 +11,7 @@ pub trait PlanVisitor {
     fn visit_remove_file(&self, step: &Step);
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 pub struct Plan {
     steps: Vec<Step>,
 }

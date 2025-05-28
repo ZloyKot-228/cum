@@ -11,8 +11,10 @@ pub struct FilesystemManager {
 }
 
 impl FilesystemManager {
-    pub fn new(root: PathBuf) -> Self {
-        Self { root }
+    pub fn new(root: PathBuf) -> Result<Self, std::io::Error> {
+        Ok(Self {
+            root: root.canonicalize()?,
+        })
     }
 
     /// Path is relative to root
@@ -31,7 +33,7 @@ impl FilesystemManager {
                     .map(|s| s == ext)
                     .unwrap_or(false)
             })
-            .map(|e| PathBuf::from(e.path()))
+            .filter_map(|e| e.path().strip_prefix(&self.root).ok().map(PathBuf::from))
             .collect()
     }
 
@@ -100,6 +102,11 @@ impl FilesystemManager {
     #[inline]
     pub fn is_newer(first: &Path, second: &Path) -> Option<bool> {
         Some(!Self::is_older(first, second)?)
+    }
+
+    #[inline]
+    pub fn to_full(&self, path: &Path) -> PathBuf {
+        self.root.join(path)
     }
 
     pub fn root(&self) -> &PathBuf {

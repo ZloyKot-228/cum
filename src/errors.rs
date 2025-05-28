@@ -44,4 +44,7 @@ pub enum PlannerError {
 pub enum ExecutionError {
     #[error("Process IO error: [{0}]")]
     ProcIO(#[from] std::io::Error),
+
+    #[error("Process finished with error ({code}): {errs}")]
+    ProcErr { code: i32, errs: String },
 }
