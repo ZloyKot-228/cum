@@ -6,7 +6,9 @@ pub mod diagnostics;
 pub mod drivers;
 pub mod errors;
 pub mod logger;
+pub mod meta;
 pub mod parsing;
+pub mod planning;
 
 fn main() {
     let mut core = Core::default();
@@ -16,6 +18,8 @@ fn main() {
 
     core.parse_args(env::args().collect());
     core.verify_diagnostics();
+
+    core.print_info();
 
     core.print_all_diagnostics();
 }

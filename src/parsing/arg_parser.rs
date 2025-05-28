@@ -1,6 +1,10 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    cell::RefCell,
+    collections::{HashMap, HashSet},
+    rc::Rc,
+};
 
-use crate::{core::ContextCell, errors::QueryError};
+use crate::errors::QueryError;
 
 #[derive(Default, Debug, PartialEq, Eq)]
 pub struct Args {
@@ -17,12 +21,12 @@ pub struct Args {
 
 pub struct ArgParser {
     args: Vec<String>,
-    ctx: ContextCell,
+    args_dest: Rc<RefCell<Args>>,
 }
 
 impl ArgParser {
-    pub fn new(args: Vec<String>, ctx: ContextCell) -> Self {
-        Self { args, ctx }
+    pub fn new(args: Vec<String>, args_dest: Rc<RefCell<Args>>) -> Self {
+        Self { args, args_dest }
     }
 
     pub fn try_parse(&self) -> Result<(), QueryError> {
@@ -30,7 +34,7 @@ impl ArgParser {
             return Err(QueryError::NoArgs);
         }
 
-        let args_bind = &mut self.ctx.borrow_mut().args;
+        let args_bind = &mut self.args_dest.borrow_mut();
         for (i, arg) in self.args.iter().skip(1).enumerate() {
             // Consume freestanding_params
             if arg == "--" {
@@ -103,7 +107,7 @@ impl Args {
 
 pub mod tests {
 
-    use crate::{core::ContextCell, parsing::arg_parser::Args};
+    use crate::{core::Context, parsing::arg_parser::Args};
 
     use super::ArgParser;
 
@@ -121,8 +125,8 @@ pub mod tests {
         .iter()
         .map(|s| String::from(*s))
         .collect();
-        let mock_ctx = ContextCell::default();
-        let parser = ArgParser::new(mock_args, mock_ctx.clone());
+        let mock_ctx = Context::default();
+        let parser = ArgParser::new(mock_args, mock_ctx.args.clone());
 
         let mut expected_args = Args::default();
         expected_args.command = Some("build".to_string());
@@ -137,8 +141,8 @@ pub mod tests {
 
         parser.try_parse().unwrap();
 
-        println!("Parsed args: {:#?}", mock_ctx.borrow().args);
-        assert_eq!(mock_ctx.borrow().args, expected_args);
+        println!("Parsed args: {:#?}", mock_ctx.args.borrow());
+        assert_eq!(*mock_ctx.args.borrow(), expected_args);
     }
 
     #[test]
@@ -147,8 +151,8 @@ pub mod tests {
             .iter()
             .map(|s| String::from(*s))
             .collect();
-        let mock_ctx = ContextCell::default();
-        let parser = ArgParser::new(mock_args, mock_ctx.clone());
+        let mock_ctx = Context::default();
+        let parser = ArgParser::new(mock_args, mock_ctx.args.clone());
 
         let mut expected_args = Args::default();
         expected_args
@@ -157,6 +161,6 @@ pub mod tests {
 
         parser.try_parse().unwrap();
 
-        assert_eq!(mock_ctx.borrow().args, expected_args);
+        assert_eq!(*mock_ctx.args.borrow(), expected_args);
     }
 }

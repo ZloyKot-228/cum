@@ -1,6 +1,6 @@
-use std::{fs, path::PathBuf};
+use std::{cell::RefCell, fs, path::PathBuf, rc::Rc};
 
-use crate::{core::ContextCell, errors::ParsingError};
+use crate::errors::ParsingError;
 
 use super::config::{Config, DEFAULT_CONFIG_STR};
 
@@ -8,21 +8,21 @@ use super::config::{Config, DEFAULT_CONFIG_STR};
 pub struct ConfigParser {
     file: PathBuf,
 
-    ctx: ContextCell,
+    cfg: Rc<RefCell<Config>>,
 }
 
 impl ConfigParser {
-    pub fn new(file: PathBuf, ctx: ContextCell) -> Self {
-        Self { file, ctx }
+    pub fn new(file: PathBuf, cfg: Rc<RefCell<Config>>) -> Self {
+        Self { file, cfg }
     }
 
     /// Write default config into Context
     pub fn make_default(&self) -> Result<(), ParsingError> {
-        let mut ctx_bind = self.ctx.borrow_mut();
-        ctx_bind.config = Self::parse_from_str(DEFAULT_CONFIG_STR)?;
+        let mut cfg_bind = self.cfg.borrow_mut();
+        *cfg_bind = Self::parse_from_str(DEFAULT_CONFIG_STR)?;
 
-        if ctx_bind.config.std_as_str().is_none() {
-            return Err(ParsingError::WrongStandart(ctx_bind.config.std));
+        if cfg_bind.std_as_str().is_none() {
+            return Err(ParsingError::WrongStandart(cfg_bind.std));
         }
         Ok(())
     }
@@ -33,7 +33,7 @@ impl ConfigParser {
         if !self.file.exists() {
             return Ok(());
         }
-        let cfg_bind = &mut self.ctx.borrow_mut().config;
+        let cfg_bind = &mut self.cfg.borrow_mut();
 
         let cfg_user_defined_str = fs::read_to_string(&self.file)?;
         let cfg_user_defined = Self::parse_from_str(&cfg_user_defined_str)?;
@@ -59,19 +59,20 @@ impl ConfigParser {
 }
 
 pub mod tests {
+    use crate::core::Context;
+
     use super::ConfigParser;
-    use crate::core::ContextCell;
     use std::path::PathBuf;
 
     #[test]
     fn simple_cfg_parser_debug() {
         let mock_file = PathBuf::from("test_assets/test_config.toml");
-        let mock_ctx = ContextCell::default();
-        let parser = ConfigParser::new(mock_file, mock_ctx.clone());
+        let mock_ctx = Context::default();
+        let parser = ConfigParser::new(mock_file, mock_ctx.config.clone());
 
         parser.make_default().unwrap();
         parser.try_incremental_parse().unwrap();
 
-        println!("Parsed config: {:#?}", mock_ctx.borrow().config);
+        println!("Parsed config: {:#?}", mock_ctx.config.borrow());
     }
 }
