@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use super::plan::PlanVisitor;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Step {
     Compilation {
         source: PathBuf,
@@ -13,6 +13,10 @@ pub enum Step {
         source: Vec<PathBuf>,
         output: PathBuf,
         preset: String,
+    },
+    Run {
+        exe: String,
+        args: Vec<String>,
     },
     CreateDir {
         path: PathBuf,
@@ -33,6 +37,7 @@ impl Step {
         match self {
             Step::Compilation { .. } => visitor.visit_compilation(self),
             Step::Linkage { .. } => visitor.visit_linkage(self),
+            Step::Run { .. } => visitor.visit_run(self),
             Step::CreateDir { .. } => visitor.visit_make_dir(self),
             Step::RemoveDir { .. } => visitor.visit_remove_dir(self),
             Step::CreateFile { .. } => visitor.visit_make_file(self),

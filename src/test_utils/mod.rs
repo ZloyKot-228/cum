@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    core::FilesystemManagerCell,
+    core::{Context, FilesystemManagerCell},
     drivers::fs_manager::FilesystemManager,
     parsing::{
         arg_parser::{ArgParser, Args},
@@ -35,9 +35,25 @@ impl MockFactory {
         parser.try_parse().unwrap();
         res
     }
+
+    pub fn mock_ctx_for_call(args: &[&str]) -> Context {
+        let mut ctx = Context::default();
+        ctx.config = Self::mock_cfg_default();
+        ctx.args = Self::mock_args(args);
+        ctx
+    }
 }
 
 #[inline]
 pub fn set_dir_to_tests() {
-    env::set_current_dir(Path::new("test_assets/")).unwrap();
+    if env::current_dir()
+        .unwrap()
+        .file_name()
+        .unwrap()
+        .to_str()
+        .unwrap()
+        != "test_assets"
+    {
+        env::set_current_dir(Path::new("test_assets/")).unwrap();
+    }
 }

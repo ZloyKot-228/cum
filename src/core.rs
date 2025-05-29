@@ -63,6 +63,8 @@ impl Core {
     pub fn make_plan(&mut self) {
         let mut planner = Planner::new(&mut self.ctx, self.fs_m.clone());
 
+        Logger::info("Analyzing dependencies...");
+
         if let Err(err) = planner.try_make_plan() {
             self.diagnostics.borrow_mut().report_error(err);
         }

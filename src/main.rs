@@ -1,6 +1,7 @@
 use core::Core;
 use std::env;
 
+pub mod concurrency;
 pub mod core;
 pub mod diagnostics;
 pub mod drivers;

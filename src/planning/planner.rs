@@ -6,7 +6,7 @@ use crate::{
     errors::{PlannerError, QueryError},
 };
 
-use super::args_specification::*;
+use super::{args_specification::*, step::Step};
 
 pub struct Planner<'a> {
     ctx: &'a mut Context,
@@ -29,14 +29,21 @@ impl<'a> Planner<'a> {
     pub fn try_make_plan(&mut self) -> Result<(), PlannerError> {
         self.get_preset()?;
 
-        if IncrementalBuild.is_satisfied_by(&self.ctx.args) {
+        if IncrementalBuild
+            .or(IncrementalRun)
+            .is_satisfied_by(&self.ctx.args)
+        {
             self.plan_compilation(true)?;
-            self.plan_linkage()?;
-        } else if FullBuild.is_satisfied_by(&self.ctx.args) {
+            self.plan_linkage();
+        } else if FullBuild.or(FullRun).is_satisfied_by(&self.ctx.args) {
             self.plan_compilation(false)?;
-            self.plan_linkage()?;
+            self.plan_linkage();
         } else if InitProject.is_satisfied_by(&self.ctx.args) {
             self.plan_init();
+        }
+
+        if FullRun.or(IncrementalRun).is_satisfied_by(&self.ctx.args) {
+            self.plan_run_linked();
         }
 
         Ok(())
@@ -49,14 +56,13 @@ impl<'a> Planner<'a> {
         let mut src_files = self
             .fs_m
             .find_all_with_extension("cpp", &PathBuf::from("src"));
-        let newest_obj = FilesystemManager::find_newest(&obj_files);
         // Generate full list of objects to link.
         self.create_obj_list(&src_files);
 
         if src_files.is_empty() {
             return Ok(());
         }
-        if newest_obj.is_none() {
+        if obj_files.is_empty() {
             incremental = false;
         }
 
@@ -64,14 +70,14 @@ impl<'a> Planner<'a> {
             let mut anayzer =
                 DependencyAnalyzer::new(&self.ctx.config, self.fs_m.clone(), &src_files);
             anayzer.generate_dependencies()?;
-            // Retain dirty .cpp files.
-            src_files = anayzer.get_dirty_src(newest_obj.as_ref().unwrap());
+            // Retain .cpp files that need to be recompiled.
+            src_files = anayzer.get_dirty_src();
         }
 
         for file in src_files {
             self.ctx.plan.add_compilation(
                 file.clone(),
-                Self::src_to_obj(&file),
+                FilesystemManager::src_to_obj(&file),
                 self.preset.clone(),
             );
         }
@@ -79,7 +85,7 @@ impl<'a> Planner<'a> {
         Ok(())
     }
 
-    fn plan_linkage(&mut self) -> Result<(), PlannerError> {
+    fn plan_linkage(&mut self) {
         let executable_path = self.ctx.config.presets[&self.preset].target_folder.clone();
         let executable_name = PathBuf::from(&self.ctx.config.target_name);
 
@@ -92,23 +98,10 @@ impl<'a> Planner<'a> {
         self.ctx
             .plan
             .add_linkage(self.obj_list.clone(), executable, self.preset.clone());
-
-        Ok(())
     }
 
     fn create_obj_list(&mut self, src_list: &[PathBuf]) {
-        self.obj_list = src_list.iter().map(Self::src_to_obj).collect();
-    }
-
-    /// src/deps/dep1.cpp turns into target/obj/src.deps.dep1.o
-    fn src_to_obj(path: &PathBuf) -> PathBuf {
-        let dotted: String = path
-            .with_extension("o")
-            .components()
-            .map(|c| c.as_os_str().to_string_lossy().to_string())
-            .collect::<Vec<_>>()
-            .join(".");
-        PathBuf::from(format!("target/obj/{dotted}"))
+        self.obj_list = src_list.iter().map(FilesystemManager::src_to_obj).collect();
     }
 
     fn get_preset(&mut self) -> Result<(), QueryError> {
@@ -137,6 +130,15 @@ impl<'a> Planner<'a> {
         self.ctx.plan.add_make_dir("dependencies/include".into());
         self.ctx.plan.add_make_dir("dependencies/lib".into());
     }
+
+    fn plan_run_linked(&mut self) {
+        if let Some(Step::Linkage { output, .. }) = self.ctx.plan.steps().last().cloned() {
+            self.ctx.plan.add_run(
+                output.display().to_string(),
+                self.ctx.args.freestanding_params.clone(),
+            );
+        }
+    }
 }
 
 pub mod tests {
@@ -151,31 +153,24 @@ pub mod tests {
     fn simple_planner_build_inc_debug() {
         set_dir_to_tests();
         let fs_m = FilesystemManagerCell::default();
-        let mock_cfg = MockFactory::mock_cfg_default();
-        let mock_args = MockFactory::mock_args(&["cum.exe", "build"]);
-        let mut mock_ctx = Context::default();
-        mock_ctx.config = mock_cfg;
-        mock_ctx.args = mock_args;
+        let mut mock_ctx = MockFactory::mock_ctx_for_call(&["cum.exe", "build"]);
 
         let mut planner = Planner::new(&mut mock_ctx, fs_m);
         planner.try_make_plan().unwrap();
 
-        println!("Planned: {:#?}", mock_ctx.plan);
+        println!("IncrementalBuild: {:#?}", mock_ctx.plan);
     }
 
     #[test]
     fn simple_planner_run_inc_debug() {
         set_dir_to_tests();
         let fs_m = FilesystemManagerCell::default();
-        let mock_cfg = MockFactory::mock_cfg_default();
-        let mock_args = MockFactory::mock_args(&["cum.exe", "run"]);
-        let mut mock_ctx = Context::default();
-        mock_ctx.config = mock_cfg;
-        mock_ctx.args = mock_args;
+        let mut mock_ctx =
+            MockFactory::mock_ctx_for_call(&["cum.exe", "run", "--", "-param", "-flag"]);
 
         let mut planner = Planner::new(&mut mock_ctx, fs_m);
         planner.try_make_plan().unwrap();
 
-        println!("Planned: {:#?}", mock_ctx.plan);
+        println!("IncrementalRun: {:#?}", mock_ctx.plan);
     }
 }

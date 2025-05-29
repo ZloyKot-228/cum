@@ -109,6 +109,28 @@ impl FilesystemManager {
         self.root.join(path)
     }
 
+    /// src/deps/dep1.cpp turns into target/obj/src.deps.dep1.o
+    pub fn src_to_obj(path: &PathBuf) -> PathBuf {
+        let dotted: String = path
+            .with_extension("o")
+            .components()
+            .map(|c| c.as_os_str().to_string_lossy().to_string())
+            .collect::<Vec<_>>()
+            .join(".");
+        PathBuf::from(format!("target/obj/{dotted}"))
+    }
+
+    /// src/deps/dep1.cpp turns into target/obj/src.deps.dep1.o
+    pub fn src_to_obj_path(path: &Path) -> PathBuf {
+        let dotted: String = path
+            .with_extension("o")
+            .components()
+            .map(|c| c.as_os_str().to_string_lossy().to_string())
+            .collect::<Vec<_>>()
+            .join(".");
+        PathBuf::from(format!("target/obj/{dotted}"))
+    }
+
     pub fn root(&self) -> &PathBuf {
         &self.root
     }

@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 
 use crate::{core::FilesystemManagerCell, errors::ExecutionError, parsing::config::Config};
 
-use super::proc_spawner::ProcSpawner;
+use super::{fs_manager::FilesystemManager, proc_spawner::ProcSpawner};
 
 pub struct DependencyAnalyzer<'a> {
     fs_m: FilesystemManagerCell,
@@ -40,9 +40,21 @@ impl<'a> DependencyAnalyzer<'a> {
     }
 
     /// Get entries from src_files which need to be recompiled.
-    /// 'origin' is file that represents last compilation time.
-    pub fn get_dirty_src(&self, origin: &Path) -> Vec<PathBuf> {
-        todo!()
+    pub fn get_dirty_src(&self) -> Vec<PathBuf> {
+        self.dependency_spans
+            .iter()
+            .filter(|d| {
+                let obj = FilesystemManager::src_to_obj_path(d.dependent);
+                if !obj.exists() {
+                    return true;
+                }
+
+                d.dependencies
+                    .iter()
+                    .any(|p| FilesystemManager::is_newer(p, &obj).unwrap())
+            })
+            .map(|d| PathBuf::from(d.dependent))
+            .collect()
     }
 
     fn push_dependency(&mut self, file: &'a Path) -> Result<(), ExecutionError> {

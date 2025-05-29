@@ -4,7 +4,6 @@ use crate::logger::Logger;
 
 #[derive(PartialEq, Eq)]
 enum DiagnosticKind {
-    Info,
     Warning,
     Error,
 }
@@ -34,13 +33,6 @@ impl DiagnosticBag {
         });
     }
 
-    pub fn report_info(&mut self, msg: String) {
-        self.diagnostics.push(Diagnostic {
-            kind: DiagnosticKind::Info,
-            msg,
-        });
-    }
-
     pub fn report_warning(&mut self, msg: String) {
         self.diagnostics.push(Diagnostic {
             kind: DiagnosticKind::Warning,
@@ -52,7 +44,6 @@ impl DiagnosticBag {
     pub fn print_all(&self) {
         for d in self.diagnostics.iter() {
             match d.kind {
-                DiagnosticKind::Info => Logger::info(&d.msg),
                 DiagnosticKind::Warning => Logger::warning(&d.msg),
                 DiagnosticKind::Error => Logger::error(&d.msg),
             }

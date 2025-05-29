@@ -5,6 +5,7 @@ use super::step::Step;
 pub trait PlanVisitor {
     fn visit_compilation(&self, step: &Step);
     fn visit_linkage(&self, step: &Step);
+    fn visit_run(&self, step: &Step);
     fn visit_make_dir(&self, step: &Step);
     fn visit_remove_dir(&self, step: &Step);
     fn visit_make_file(&self, step: &Step);
@@ -31,6 +32,10 @@ impl Plan {
             output,
             preset,
         });
+    }
+
+    pub fn add_run(&mut self, exe: String, args: Vec<String>) {
+        self.steps.push(Step::Run { exe, args });
     }
 
     pub fn add_make_dir(&mut self, path: PathBuf) {
