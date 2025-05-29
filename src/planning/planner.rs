@@ -36,13 +36,17 @@ impl<'a> Planner<'a> {
             .or(IncrementalRun)
             .is_satisfied_by(&self.ctx.args)
         {
+            Logger::info("Analyzing dependencies...");
             self.plan_compilation(true)?;
             self.plan_linkage();
         } else if FullBuild.or(FullRun).is_satisfied_by(&self.ctx.args) {
             self.plan_compilation(false)?;
             self.plan_linkage();
         } else if InitProject.is_satisfied_by(&self.ctx.args) {
+            Logger::info("Initializiing empty project...");
             self.plan_init();
+        } else if let Some(cmd) = &self.ctx.args.command.as_ref() {
+            return Err(QueryError::UnknownCommand(cmd.to_string()).into());
         }
 
         if FullRun.or(IncrementalRun).is_satisfied_by(&self.ctx.args) {

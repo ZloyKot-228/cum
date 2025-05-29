@@ -68,8 +68,6 @@ impl Core {
     pub fn make_plan(&mut self) {
         let mut planner = Planner::new(&mut self.ctx, self.fs_m.clone());
 
-        Logger::info("Analyzing dependencies...");
-
         if let Err(err) = planner.try_make_plan() {
             self.diagnostics.borrow_mut().report_error(err);
         }
@@ -95,10 +93,10 @@ impl Core {
     /// Print information if needed and exist (if printed something).
     pub fn print_info(&self) {
         if PrintHelp.is_satisfied_by(&self.ctx.args) {
-            Logger::info(HELP_MSG);
+            println!("{HELP_MSG}");
             exit(0);
         } else if PrintVersion.is_satisfied_by(&self.ctx.args) {
-            Logger::info(VERSION_MSG);
+            println!("{VERSION_MSG}");
             exit(0);
         }
     }

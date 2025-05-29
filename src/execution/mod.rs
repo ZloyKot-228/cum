@@ -1,12 +1,12 @@
 use std::{
     cell::RefCell,
-    path::{Path, PathBuf},
     sync::mpsc::{self, Receiver, Sender},
 };
 
 use path_clean::PathClean;
 
 use crate::{
+    concurrency::timer::Timer,
     core::{Context, DiagnosticsCell, FilesystemManagerCell},
     drivers::proc_spawner::{ProcSpawnRusult, ProcSpawner},
     logger::Logger,
@@ -19,6 +19,7 @@ pub struct PlanExecutor<'a> {
     fs_m: FilesystemManagerCell,
     diagnostics: DiagnosticsCell,
 
+    compilation_timer: Timer,
     compilation_tx: RefCell<Option<Sender<ProcSpawnRusult>>>,
     compilation_rx: Receiver<ProcSpawnRusult>,
 }
@@ -35,6 +36,7 @@ impl<'a> PlanExecutor<'a> {
             ctx,
             fs_m,
             diagnostics,
+            compilation_timer: Timer::default(),
             compilation_rx,
             compilation_tx: Some(compilation_tx).into(),
         }
@@ -56,6 +58,11 @@ impl<'a> PlanExecutor<'a> {
         // Calls destructor on tx
         *self.compilation_tx.borrow_mut() = None;
         let mut success = true;
+
+        self.compilation_timer.stop();
+        if let Some(time) = self.compilation_timer.elapsed_float() {
+            Logger::info(&format!("Compilation finished at {:.2}", time));
+        }
 
         for res in self.compilation_rx.iter() {
             match res {
@@ -192,6 +199,7 @@ impl PlanVisitor for PlanExecutor<'_> {
         if tx.is_none() {
             return;
         }
+        self.compilation_timer.start();
         ProcSpawner::spawn_into_pool(
             COMPILER.into(),
             args,
