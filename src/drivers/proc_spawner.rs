@@ -1,6 +1,13 @@
-use std::process::{Command, Stdio};
+use std::{
+    process::{Command, Stdio},
+    sync::mpsc::Sender,
+};
+
+use threadpool::ThreadPool;
 
 use crate::errors::ExecutionError;
+
+pub type ProcSpawnRusult = Result<ProcOutput, ExecutionError>;
 
 pub struct ProcSpawner;
 
@@ -11,7 +18,7 @@ pub struct ProcOutput {
 }
 
 impl ProcSpawner {
-    pub fn spawn_and_wait(exe: &str, args: &[String]) -> Result<ProcOutput, ExecutionError> {
+    pub fn spawn_and_wait(exe: &str, args: &[String]) -> ProcSpawnRusult {
         let output = Command::new(exe).args(args).output()?;
 
         let outs: String = String::from_utf8_lossy(&output.stdout).into();
@@ -23,6 +30,32 @@ impl ProcSpawner {
             errs,
             exit_code,
         })
+    }
+
+    pub fn spawn_and_wait_owned(exe: String, args: Vec<String>) -> ProcSpawnRusult {
+        let output = Command::new(exe).args(args).output()?;
+
+        let outs: String = String::from_utf8_lossy(&output.stdout).into();
+        let errs: String = String::from_utf8_lossy(&output.stderr).into();
+        let exit_code = output.status.code().unwrap_or(1);
+
+        Ok(ProcOutput {
+            outs,
+            errs,
+            exit_code,
+        })
+    }
+
+    pub fn spawn_into_pool(
+        exe: String,
+        args: Vec<String>,
+        tp: &ThreadPool,
+        tx: Sender<ProcSpawnRusult>,
+    ) {
+        tp.execute(move || {
+            let res = Self::spawn_and_wait_owned(exe, args);
+            tx.send(res).unwrap();
+        });
     }
 
     /// Spawn process and inherit all stdio streams from parent. Returns exit_code.

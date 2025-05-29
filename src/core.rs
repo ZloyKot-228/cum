@@ -1,8 +1,11 @@
 use std::{cell::RefCell, path::PathBuf, process::exit, rc::Rc};
 
+use threadpool::ThreadPool;
+
 use crate::{
     diagnostics::DiagnosticBag,
     drivers::fs_manager::FilesystemManager,
+    execution::PlanExecutor,
     logger::Logger,
     meta::{HELP_MSG, SHORT_HELP, VERSION_MSG},
     parsing::{
@@ -25,6 +28,7 @@ pub struct Context {
     pub config: Config,
     pub args: Args,
     pub plan: Plan,
+    pub thread_pool: ThreadPool,
 }
 
 #[derive(Default)]
@@ -47,7 +51,8 @@ impl Core {
     pub fn parse_config(&mut self) {
         let cfg_path = PathBuf::from(CONFIG_FILE_PATH);
         if !cfg_path.exists() {
-            Logger::warning("Config file is missing, default one was loaded");
+            Logger::error("Cum.toml file is missing, try 'cum init' first");
+            exit(1);
         }
 
         let mut parser = ConfigParser::new(cfg_path, &mut self.ctx.config);
@@ -70,6 +75,11 @@ impl Core {
         }
     }
 
+    pub fn execute_plan(&mut self) {
+        let executor = PlanExecutor::new(&self.ctx, self.fs_m.clone(), self.diagnostics.clone());
+        executor.execute_and_report();
+    }
+
     pub fn verify_diagnostics(&self) {
         let bind = self.diagnostics.borrow();
         if bind.contains_error() {
@@ -82,7 +92,7 @@ impl Core {
         self.diagnostics.borrow().print_all();
     }
 
-    /// Print information if need and exist (if printed something).
+    /// Print information if needed and exist (if printed something).
     pub fn print_info(&self) {
         if PrintHelp.is_satisfied_by(&self.ctx.args) {
             Logger::info(HELP_MSG);

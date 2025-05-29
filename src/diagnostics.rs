@@ -1,13 +1,14 @@
-use std::fmt::Display;
+use std::{cmp::Ordering, fmt::Display};
 
 use crate::logger::Logger;
 
-#[derive(PartialEq, Eq)]
+#[derive(PartialEq, Eq, Clone)]
 enum DiagnosticKind {
     Warning,
     Error,
 }
 
+#[derive(Clone)]
 struct Diagnostic {
     pub kind: DiagnosticKind,
     pub msg: String,
@@ -42,12 +43,31 @@ impl DiagnosticBag {
 
     #[inline]
     pub fn print_all(&self) {
-        for d in self.diagnostics.iter() {
+        for d in self.get_sorted() {
             match d.kind {
                 DiagnosticKind::Warning => Logger::warning(&d.msg),
                 DiagnosticKind::Error => Logger::error(&d.msg),
             }
         }
+    }
+
+    #[inline]
+    pub fn print_all_clear(&mut self) {
+        self.print_all();
+        self.diagnostics.clear();
+    }
+
+    #[inline]
+    pub fn get_sorted(&self) -> Vec<Diagnostic> {
+        let mut sorted = self.diagnostics.clone();
+        sorted.sort_by(|a, _| {
+            if a.kind == DiagnosticKind::Warning {
+                Ordering::Less
+            } else {
+                Ordering::Greater
+            }
+        });
+        sorted
     }
 
     #[inline]

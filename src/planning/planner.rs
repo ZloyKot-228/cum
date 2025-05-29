@@ -1,9 +1,12 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+
+use path_clean::PathClean;
 
 use crate::{
     core::{Context, FilesystemManagerCell},
     drivers::{dependency_analyzer::DependencyAnalyzer, fs_manager::FilesystemManager},
     errors::{PlannerError, QueryError},
+    logger::Logger,
 };
 
 use super::{args_specification::*, step::Step};
@@ -60,6 +63,7 @@ impl<'a> Planner<'a> {
         self.create_obj_list(&src_files);
 
         if src_files.is_empty() {
+            Logger::info("No .cpp files found");
             return Ok(());
         }
         if obj_files.is_empty() {
@@ -95,6 +99,12 @@ impl<'a> Planner<'a> {
             executable_path.join(executable_name)
         };
 
+        if !executable.parent().map(Path::exists).unwrap_or(true) {
+            self.ctx
+                .plan
+                .add_make_dir(executable.parent().unwrap().into());
+        }
+
         self.ctx
             .plan
             .add_linkage(self.obj_list.clone(), executable, self.preset.clone());
@@ -126,6 +136,7 @@ impl<'a> Planner<'a> {
         self.ctx.plan.add_make_file("Cum.toml".into());
         self.ctx.plan.add_make_file("src/main.cpp".into());
         self.ctx.plan.add_make_file("tests/test_runner.cpp".into());
+        self.ctx.plan.add_make_dir("target/obj".into());
         self.ctx.plan.add_make_dir("include".into());
         self.ctx.plan.add_make_dir("dependencies/include".into());
         self.ctx.plan.add_make_dir("dependencies/lib".into());
@@ -134,7 +145,7 @@ impl<'a> Planner<'a> {
     fn plan_run_linked(&mut self) {
         if let Some(Step::Linkage { output, .. }) = self.ctx.plan.steps().last().cloned() {
             self.ctx.plan.add_run(
-                output.display().to_string(),
+                output.clean().display().to_string(),
                 self.ctx.args.freestanding_params.clone(),
             );
         }

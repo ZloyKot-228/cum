@@ -76,6 +76,7 @@ impl<'a> DependencyAnalyzer<'a> {
         let mut res = vec![
             format!("-std=c++{}", self.cfg.std_as_str().unwrap()),
             "-MM".into(),
+            "-E".into(),
             file.display().to_string(),
         ];
         for dir in &self.cfg.include_dirs {

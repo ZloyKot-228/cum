@@ -1,5 +1,2 @@
-target_name = "executable"
+target_name = "test_prog"
 
-[presets.some]
-cflags = ["-g", "-O0"]
-target_folder = "target/sadd"

@@ -4,13 +4,15 @@ lib_dirs = ["dependencies/lib"]
 target_name = "program"
 
 [presets.debug]
-cflags = ["-g", "-O0"]
-lflags = ["-asdsad"]
-libs = ["fmt"]
+cflags = ["-Wall", "-Wextra", "-g", "-O0", "-fno-omit-frame-pointer", "-DCUM_DEBUG"]
+lflags = ["-g", "-O0", "-fuse-ld=lld", "-static-libgcc", "-static-libstdc++"]
+libs = []
 target_folder = "target/debug"
 
 [presets.release]
-cflags = ["-O3"]
-lflags = ["-flto"]
-libs = ["fmt"]
+cflags = ["-Wall", "-Wextra", "-O3", "-march=native", "-DCUM_RELEASE", "-ffunction-sections",
+          "-fdata-sections"]
+lflags = ["-Wl,--gc-sections", "-fuse-ld=lld", "-static-libgcc", "-static-libstdc++",
+          "-fvisibility=hidden"]
+libs = []
 target_folder = "target/release"
