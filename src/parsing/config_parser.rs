@@ -22,6 +22,8 @@ impl<'a> ConfigParser<'a> {
         if self.cfg.std_as_str().is_none() {
             return Err(ParsingError::WrongStandart(self.cfg.std));
         }
+        self.cfg.normalize_pathes();
+
         Ok(())
     }
 
@@ -39,6 +41,7 @@ impl<'a> ConfigParser<'a> {
         if self.cfg.std_as_str().is_none() {
             return Err(ParsingError::WrongStandart(self.cfg.std));
         }
+        self.cfg.normalize_pathes();
 
         Ok(())
     }

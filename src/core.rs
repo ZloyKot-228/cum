@@ -51,8 +51,7 @@ impl Core {
     pub fn parse_config(&mut self) {
         let cfg_path = PathBuf::from(CONFIG_FILE_PATH);
         if !cfg_path.exists() {
-            Logger::error("Cum.toml file is missing, try 'cum init' first");
-            exit(1);
+            Logger::warning("Cum.toml file is missing defaults were loaded");
         }
 
         let mut parser = ConfigParser::new(cfg_path, &mut self.ctx.config);

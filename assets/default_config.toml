@@ -2,6 +2,13 @@ std = 20
 include_dirs = ["include", "dependencies/include"]
 lib_dirs = ["dependencies/lib"]
 target_name = "program"
+entry_points = ["src/main.cpp", "tests/test_runner.cpp"]
+
+[presets.test]
+cflags = ["-Wall", "-Wextra", "-g", "-O0", "-fno-omit-frame-pointer", "-DCUM_DEBUG"]
+lflags = ["-g", "-O0", "-fuse-ld=lld", "-static-libgcc", "-static-libstdc++"]
+libs = []
+target_folder = "target/test_runner"
 
 [presets.debug]
 cflags = ["-Wall", "-Wextra", "-g", "-O0", "-fno-omit-frame-pointer", "-DCUM_DEBUG"]

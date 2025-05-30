@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use thiserror::Error;
 
 // Parsing error
@@ -24,6 +26,9 @@ pub enum QueryError {
 
     #[error("Invalid preset: '{0}'")]
     InvalidPreset(String),
+
+    #[error("Invalid entry point: '{0}'")]
+    InvalidEntryPoint(PathBuf),
 
     #[error("No arguments provided")]
     NoArgs,

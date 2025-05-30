@@ -74,6 +74,7 @@ pub struct IncrementalBuild;
 pub struct FullBuild;
 pub struct IncrementalRun;
 pub struct FullRun;
+pub struct RunTest;
 
 pub struct InitProject;
 
@@ -109,6 +110,12 @@ impl ArgsSpec for FullRun {
     fn is_satisfied_by(&self, item: &Args) -> bool {
         item.command.as_ref().map(|s| s == "run").unwrap_or(false)
             && (item.have_flag("preset") || item.have_flag("force") || item.have_flag("f"))
+    }
+}
+
+impl ArgsSpec for RunTest {
+    fn is_satisfied_by(&self, item: &Args) -> bool {
+        item.command.as_ref().map(|s| s == "test").unwrap_or(false)
     }
 }
 

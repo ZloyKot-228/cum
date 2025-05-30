@@ -17,7 +17,7 @@ impl FilesystemManager {
         })
     }
 
-    /// Path is relative to root
+    /// All pathes are relative to root
     pub fn find_all_with_extension(&self, ext: &str, dir: &Path) -> Vec<PathBuf> {
         if !dir.exists() {
             return vec![];

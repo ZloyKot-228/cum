@@ -1,5 +1,6 @@
 use std::{collections::HashMap, path::PathBuf};
 
+use path_clean::PathClean;
 use serde::Deserialize;
 
 pub const CONFIG_FILE_PATH: &str = "./Cum.toml";
@@ -18,6 +19,9 @@ pub struct Config {
 
     #[serde(default)]
     pub target_name: String,
+
+    #[serde(default)]
+    pub entry_points: Vec<PathBuf>,
 
     #[serde(default)]
     pub presets: HashMap<String, Preset>,
@@ -53,6 +57,9 @@ impl Config {
         if !other.target_name.is_empty() {
             self.target_name = other.target_name;
         }
+        if !other.entry_points.is_empty() {
+            self.entry_points = other.entry_points;
+        }
 
         for (key, value) in other.presets {
             if !self.presets.contains_key(&key) {
@@ -76,6 +83,13 @@ impl Config {
         }
     }
 
+    pub fn normalize_pathes(&mut self) {
+        self.include_dirs.iter_mut().for_each(|p| *p = p.clean());
+        self.lib_dirs.iter_mut().for_each(|p| *p = p.clean());
+        self.entry_points.iter_mut().for_each(|p| *p = p.clean());
+    }
+
+    #[inline]
     pub fn std_as_str(&self) -> Option<String> {
         match self.std {
             3 => Some("03".to_string()),

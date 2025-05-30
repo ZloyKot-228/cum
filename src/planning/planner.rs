@@ -15,6 +15,7 @@ pub struct Planner<'a> {
     ctx: &'a mut Context,
     fs_m: FilesystemManagerCell,
 
+    entry_point: PathBuf,
     obj_list: Vec<PathBuf>,
     preset: String,
 }
@@ -24,16 +25,24 @@ impl<'a> Planner<'a> {
         Self {
             ctx,
             fs_m,
+            entry_point: PathBuf::default(),
             preset: String::default(),
             obj_list: Vec::default(),
         }
     }
 
     pub fn try_make_plan(&mut self) -> Result<(), PlannerError> {
-        self.get_preset()?;
+        self.set_preset()?;
+        self.set_entry_point()?;
+
+        if RunTest.is_satisfied_by(&self.ctx.args) {
+            self.try_set_preset_to("test".into())?;
+            self.try_set_entry_point_to("tests/test_runner.cpp".into())?;
+        }
 
         if IncrementalBuild
             .or(IncrementalRun)
+            .or(RunTest)
             .is_satisfied_by(&self.ctx.args)
         {
             Logger::info("Analyzing dependencies...");
@@ -49,7 +58,11 @@ impl<'a> Planner<'a> {
             return Err(QueryError::UnknownCommand(cmd.to_string()).into());
         }
 
-        if FullRun.or(IncrementalRun).is_satisfied_by(&self.ctx.args) {
+        if FullRun
+            .or(IncrementalRun)
+            .or(RunTest)
+            .is_satisfied_by(&self.ctx.args)
+        {
             self.plan_run_linked();
         }
 
@@ -63,8 +76,6 @@ impl<'a> Planner<'a> {
         let mut src_files = self
             .fs_m
             .find_all_with_extension("cpp", &PathBuf::from("src"));
-        // Generate full list of objects to link.
-        self.create_obj_list(&src_files);
 
         if src_files.is_empty() {
             Logger::info("No .cpp files found");
@@ -73,6 +84,9 @@ impl<'a> Planner<'a> {
         if obj_files.is_empty() {
             incremental = false;
         }
+        self.retain_entry_point(&mut src_files);
+        // Generate full list of objects to link.
+        self.create_obj_list(&src_files);
 
         if incremental {
             let mut anayzer =
@@ -114,27 +128,6 @@ impl<'a> Planner<'a> {
             .add_linkage(self.obj_list.clone(), executable, self.preset.clone());
     }
 
-    fn create_obj_list(&mut self, src_list: &[PathBuf]) {
-        self.obj_list = src_list.iter().map(FilesystemManager::src_to_obj).collect();
-    }
-
-    fn get_preset(&mut self) -> Result<(), QueryError> {
-        let preset = self
-            .ctx
-            .args
-            .named_params
-            .get("preset")
-            .cloned()
-            .unwrap_or(String::from("debug"));
-
-        if !self.ctx.config.presets.contains_key(&preset) {
-            Err(QueryError::InvalidPreset(preset))
-        } else {
-            self.preset = preset;
-            Ok(())
-        }
-    }
-
     /// Default project structure is defined here.
     fn plan_init(&mut self) {
         self.ctx.plan.add_make_file("Cum.toml".into());
@@ -153,6 +146,67 @@ impl<'a> Planner<'a> {
                 self.ctx.args.freestanding_params.clone(),
             );
         }
+    }
+
+    fn retain_entry_point(&self, list: &mut Vec<PathBuf>) {
+        list.retain(|p| !self.ctx.config.entry_points.contains(&p.clean()));
+        list.push(self.entry_point.clone());
+    }
+
+    fn create_obj_list(&mut self, src_list: &[PathBuf]) {
+        self.obj_list = src_list.iter().map(FilesystemManager::src_to_obj).collect();
+    }
+
+    fn set_preset(&mut self) -> Result<(), QueryError> {
+        let preset = self
+            .ctx
+            .args
+            .named_params
+            .get("preset")
+            .cloned()
+            .unwrap_or(String::from("debug"));
+
+        if !self.ctx.config.presets.contains_key(&preset) {
+            Err(QueryError::InvalidPreset(preset))
+        } else {
+            self.preset = preset;
+            Ok(())
+        }
+    }
+
+    fn set_entry_point(&mut self) -> Result<(), QueryError> {
+        let ep = self
+            .ctx
+            .args
+            .unnamed_params
+            .first()
+            .map(PathBuf::from)
+            .unwrap_or("src/main.cpp".into());
+
+        if !self.ctx.config.entry_points.contains(&ep) {
+            Err(QueryError::InvalidEntryPoint(ep))
+        } else {
+            self.entry_point = ep;
+            Ok(())
+        }
+    }
+
+    fn try_set_preset_to(&mut self, str: String) -> Result<(), QueryError> {
+        self.preset = if self.ctx.config.presets.contains_key(&str) {
+            str
+        } else {
+            return Err(QueryError::InvalidPreset(str));
+        };
+        Ok(())
+    }
+
+    fn try_set_entry_point_to(&mut self, path: PathBuf) -> Result<(), QueryError> {
+        self.entry_point = if self.ctx.config.entry_points.contains(&path) {
+            path
+        } else {
+            return Err(QueryError::InvalidEntryPoint(path));
+        };
+        Ok(())
     }
 }
 
@@ -181,11 +235,24 @@ pub mod tests {
         set_dir_to_tests();
         let fs_m = FilesystemManagerCell::default();
         let mut mock_ctx =
-            MockFactory::mock_ctx_for_call(&["cum.exe", "run", "--", "-param", "-flag"]);
+            MockFactory::mock_ctx_for_call(&["cum.exe", "run", "--", "--param", "-flag"]);
 
         let mut planner = Planner::new(&mut mock_ctx, fs_m);
         planner.try_make_plan().unwrap();
 
         println!("IncrementalRun: {:#?}", mock_ctx.plan);
+    }
+
+    #[test]
+    fn simple_planner_test_debug() {
+        set_dir_to_tests();
+        let fs_m = FilesystemManagerCell::default();
+        let mut mock_ctx =
+            MockFactory::mock_ctx_for_call(&["cum.exe", "test", "--", "--param", "-flag"]);
+
+        let mut planner = Planner::new(&mut mock_ctx, fs_m);
+        planner.try_make_plan().unwrap();
+
+        println!("RunTest: {:#?}", mock_ctx.plan);
     }
 }
