@@ -1,4 +1,4 @@
-№ Compilation Unit Manager
+# Compilation Unit Manager
 **cum** is a simple, fast, and extensible build tool designed for C++ projects using **Clang**. It supports multiple presets, test execution, and configuration via a minimal `toml` file format.
 ## 📦 Features
 
